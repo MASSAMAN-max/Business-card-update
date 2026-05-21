@@ -321,7 +321,7 @@
       <div class="field-wrapper"><input id="tel"><label>電話番号</label></div>
       <div class="field-wrapper"><input id="mobile"><label>携帯番号</label></div>
       <div class="field-wrapper"><input id="fax"><label>FAX番号</label></div>
-      <div class="field-wrapper"><input id="url"><label>URL</label></div>
+      <div class="field-wrapper"><input id="url"><label>会社URL</label></div>
       <div class="field-wrapper full-width"><input id="address"><label>住所</label></div>
       <div class="field-wrapper full-width"><input id="tag" placeholder="例: 取引先, 重要"><label>タグ</label></div>
       <div class="field-wrapper full-width"><textarea id="memo"></textarea><label>メモ</label></div>
@@ -527,7 +527,7 @@ async function handleOcrResult(resultObj, compressedRaw) {
     setValue("mobile", res.携帯番号);
     setValue("fax", res.FAX);
     setValue("address", res.住所);
-    setValue("url", res.URL);
+    setValue("url", res.会社URL);
     
     showToast("解析が完了しました");
   } catch (e) {
@@ -631,7 +631,7 @@ async function save() {
   currentData.携帯番号 = getValue("mobile");
   currentData.FAX = getValue("fax");
   currentData.住所 = getValue("address");
-  currentData.URL = getValue("url");
+  currentData.会社URL = getValue("url");
   currentData.タグ = getValue("tag");
   currentData.メモ = getValue("memo");
 
