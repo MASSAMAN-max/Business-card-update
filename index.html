@@ -664,6 +664,9 @@ function resetUI() {
   endLoading();
   document.getElementById("resultCard").style.display = "none";
   document.getElementById("uploadCard").style.display = "block";
+  // 非表示にしていた画像エリアをフロント表示用に復元
+  document.querySelector(".result-preview-container").style.display = "flex"; 
+  
   finalBase64 = "";
 }
 
@@ -684,6 +687,120 @@ function endLoading() {
 
 function getValue(id) { return document.getElementById(id).value || ""; }
 function setValue(id, val) { const el = document.getElementById(id); if(el) el.value = val || ""; }
+
+// --- 検索機能用の追加JavaScript
+let searchCache = []; // 検索結果を一時的に保存する配列
+// フロント側からGASへ検索をリクエストする
+async function executeSearch() {
+  const company = document.getElementById("searchCompany").value;
+  const keyword = document.getElementById("searchKeyword").value;
+  const searchBtn = document.getElementById("executeSearchBtn");
+  const resultsDiv = document.getElementById("searchResults");
+  
+  searchBtn.disabled = true;
+  searchBtn.innerText = "⏳ 検索中...";
+  resultsDiv.innerHTML = "";
+
+  try {
+    const response = await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({
+        action: "searchCards",
+        params: { company: company, keyword: keyword }
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      searchCache = result.results; // 取得データをキャッシュ
+      
+      if (searchCache.length === 0) {
+        resultsDiv.innerHTML = '<div style="text-align:center; color:var(--text-secondary); font-size:14px; padding:16px; font-weight:500;">該当する名刺が見つかりませんでした</div>';
+        return;
+      }
+      
+      // 検索結果を1件ずつリストアイテムとして生成
+      searchCache.forEach((item, index) => {
+        const itemEl = document.createElement("div");
+        itemEl.className = "result-item";
+        itemEl.onclick = () => selectSearchResult(index); // クリックでフォームに展開
+        
+        itemEl.innerHTML = `
+          <div class="item-name">${escapeHtml(item.name || "氏名なし")}</div>
+          <div class="item-sub">${escapeHtml(item.company || "会社名なし")}${item.email ? ' ｜ ' + escapeHtml(item.email) : ''}</div>
+        `;
+        resultsDiv.appendChild(itemEl);
+      });
+    } else {
+      throw new Error(result.error || "検索に失敗しました");
+    }
+  } catch (err) {
+    showToast("検索エラー: " + err.message);
+  } finally {
+    searchBtn.disabled = false;
+    searchBtn.innerText = "検索する";
+  }
+}
+
+// 検索結果をクリックした際、フォームにデータを流し込む
+function selectSearchResult(index) {
+  const item = searchCache[index];
+  if (!item) return;
+  
+  // 画面を切り替える（アップロード画面を隠し、フォーム画面を表示）
+  document.getElementById("uploadCard").style.display = "none";
+  document.getElementById("resultCard").style.display = "block";
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  
+  // 過去データの閲覧なので、画像プレビューエリアは一旦非表示にする
+  document.querySelector(".result-preview-container").style.display = "none";
+  
+  const header = item.header;
+  const rowData = item.rowData;
+  
+  // 基本3項目のマッピング
+  setValue("company", item.company);
+  setValue("name", item.name);
+  setValue("email", item.email);
+  
+  // その他の項目は、スプレッドシートのヘッダー名と一致する列から動的に取得
+  const fields = {
+    "部署": "department",
+    "電話番号": "tel",
+    "携帯番号": "mobile",
+    "FAX": "fax",
+    "住所": "address",
+    "URL": "url",
+    "タグ": "tag",
+    "メモ": "memo"
+  };
+  
+  for (const [headerName, inputId] of Object.entries(fields)) {
+    const colIdx = header.indexOf(headerName);
+    if (colIdx !== -1) {
+      setValue(inputId, rowData[colIdx]);
+    } else {
+      setValue(inputId, ""); // 列が存在しない場合は空に
+    }
+  }
+  
+  // currentData を上書き（将来的な更新機能の拡張用に、行番号などを保持）
+  currentData = {
+    rowNumber: item.rowNumber
+  };
+  
+  // 検索から開いた場合は「シートに新規保存」ではなく閲覧・修正状態になるため、保存ボタンを調整可能
+  // 今回はそのまま新規保存、あるいは上書き用として機能させられます
+  showToast("名刺データを読み込みました");
+}
+
+// セキュリティ用：HTMLエスケープ処理
+function escapeHtml(str) {
+  if (!str) return "";
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
 </script>
 </body>
 </html>
