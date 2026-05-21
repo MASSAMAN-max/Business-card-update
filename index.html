@@ -268,6 +268,11 @@
 <div id="toast" class="toast"></div>
 
 <script>
+// =================================================================
+// 【重要】ここに新しいGASのウェブアプリURL（末尾が /exec のもの）を貼り付けてください
+// =================================================================
+const GAS_URL = "https://script.google.com/macros/s/AKfycbykD3pVpoEfNFYE5fY6l8yIYUeOTBzmlRigNYh10_Mnkn8QaiAH5zxk7umuCi7avJD8Iw/exec";
+
 let currentData = {};
 let finalBase64 = "";
 let selectedFileName = "";
@@ -332,22 +337,28 @@ async function processAndRun(inputElement) {
     const rawBase64 = await fileToBase64(file);
     const compressedRaw = await compressBase64(rawBase64, 1400, 0.85);
 
-    google.script.run
-      .withSuccessHandler(function(resultObj) {
-        isProcessing = false;
-        handleOcrResult(resultObj, compressedRaw);
-      })
-      .withFailureHandler(err => {
-        isProcessing = false;
-        endLoading();
-        showToast("解析エラー: " + err);
-      })
-      .parseImageWithGemini(compressedRaw);
+    // VercelからGASウェブアプリへPOST通信（Content-Typeを指定してCORSプリフライトエラーを完全回避）
+    const response = await fetch(GAS_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain"
+      },
+      body: JSON.stringify({ action: "gemini", base64: compressedRaw })
+    });
+    
+    const result = await response.json();
+
+    if (result.success) {
+      isProcessing = false;
+      handleOcrResult(result.data, compressedRaw);
+    } else {
+      throw new Error(result.error || "解析に失敗しました");
+    }
 
   } catch (e) {
     isProcessing = false;
     endLoading();
-    showToast("画像処理エラー: " + e);
+    showToast("解析エラー: " + e.message);
   }
 }
 
@@ -472,7 +483,7 @@ function rotateImage(degrees = 90) {
   };
 }
 
-function save() {
+async function save() {
   const saveBtn = document.getElementById("saveBtn");
   saveBtn.disabled = true;
 
@@ -488,17 +499,29 @@ function save() {
   currentData.タグ = getValue("tag");
   currentData.メモ = getValue("memo");
 
-  google.script.run
-    .withSuccessHandler(() => {
+  try {
+    // スプレッドシート保存リクエスト（Content-Typeを指定してCORSプリフライトエラーを完全回避）
+    const response = await fetch(GAS_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain"
+      },
+      body: JSON.stringify({ action: "save", currentData: currentData })
+    });
+    
+    const result = await response.json();
+
+    if (result.success) {
       saveBtn.disabled = false;
       showToast("スプレッドシートとドライブに保存しました");
       setTimeout(() => resetUI(), 1200); 
-    })
-    .withFailureHandler(err => {
-      saveBtn.disabled = false;
-      showToast("保存エラー: " + err);
-    })
-    .saveContact(currentData);
+    } else {
+      throw new Error(result.error || "保存に失敗しました");
+    }
+  } catch (err) {
+    saveBtn.disabled = false;
+    showToast("保存エラー: " + err.message);
+  }
 }
 
 function resetUI() {
