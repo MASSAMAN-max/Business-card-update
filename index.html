@@ -749,13 +749,20 @@ function selectSearchResult(index) {
   const item = searchCache[index];
   if (!item) return;
   
-  // 画面を切り替える（アップロード画面を隠し、フォーム画面を表示）
+  // 画面切り替え
   document.getElementById("uploadCard").style.display = "none";
   document.getElementById("resultCard").style.display = "block";
-  window.scrollTo({ top: 0, behavior: 'smooth' });
   
-  // 過去データの閲覧なので、画像プレビューエリアは一旦非表示にする
-  document.querySelector(".result-preview-container").style.display = "none";
+  // 画像URLがあれば表示、なければ非表示
+  const previewContainer = document.querySelector(".result-preview-container");
+  const imgElement = document.getElementById("previewImage"); // 既存のプレビュー用imgタグ
+
+  if (item.imageUrl) {
+    previewContainer.style.display = "flex";
+    imgElement.src = item.imageUrl; // 画像URLをセット
+  } else {
+    previewContainer.style.display = "none";
+  }
   
   const header = item.header;
   const rowData = item.rowData;
