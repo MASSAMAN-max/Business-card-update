@@ -744,8 +744,7 @@ async function executeSearch() {
   }
 }
 
-// 検索結果をクリックした際、フォームにデータを流し込む
-// フロント修正：画像表示とフォーム展開を安全に行う関数
+// 画像URLの変換方式変更 ＆ ヘッダー名マッピングの厳密化
 function selectSearchResult(index) {
   const item = searchCache[index];
   if (!item) return;
@@ -755,28 +754,27 @@ function selectSearchResult(index) {
   document.getElementById("resultCard").style.display = "block";
   window.scrollTo({ top: 0, behavior: 'smooth' });
   
-  // 2. 【画像表示処理】エラーが起きないよう安全に要素を取得
+  // 2. 【画像表示処理】ブロックされにくい thumbnail 形式に変換
   const previewContainer = document.querySelector(".result-preview-container");
   const imgElement = previewContainer ? previewContainer.querySelector("img") : null;
 
   if (item.imageUrl && previewContainer && imgElement) {
     previewContainer.style.display = "flex";
     
-    // GoogleドライブのURL（.../file/d/ID/view）を表示可能な直リンク形式（.../uc?id=ID）に自動変換
     let srcUrl = item.imageUrl;
     if (srcUrl.includes("drive.google.com")) {
       const matches = srcUrl.match(/\/file\/d\/([^\/]+)/);
       if (matches && matches[1]) {
-        srcUrl = "https://drive.google.com/uc?export=view&id=" + matches[1];
+        // 💡ここを修正：外部サイトでも高確率で表示できるサムネイルURL形式に変換
+        srcUrl = "https://drive.google.com/thumbnail?sz=w1000&id=" + matches[1];
       }
     }
-    imgElement.src = srcUrl; // 画像をセット
+    imgElement.src = srcUrl;
   } else {
-    // URLがない、または要素がない場合は画像エリアを隠す
     if (previewContainer) previewContainer.style.display = "none";
   }
   
-  // 3. 【フォームへのデータ流uし込み】（画像処理でエラーが出なくなったので、ここが確実に動きます）
+  // 3. 【フォームへのデータ流し込み】
   const header = item.header;
   const rowData = item.rowData;
   
@@ -784,8 +782,12 @@ function selectSearchResult(index) {
   setValue("name", item.name);
   setValue("email", item.email);
   
+  // 💡ここを修正：スプレッドシートの「1行目の項目名」と完全に一致させてください
   const fields = {
+    "会社名": "company",
     "部署": "department",
+    "氏名": "name",
+    "メールアドレス": "email",
     "電話番号": "tel",
     "携帯番号": "mobile",
     "FAX": "fax",
@@ -794,7 +796,7 @@ function selectSearchResult(index) {
     "タグ": "tag",
     "メモ": "memo"
   };
-  
+
   for (const [headerName, inputId] of Object.entries(fields)) {
     const colIdx = header.indexOf(headerName);
     if (colIdx !== -1) {
