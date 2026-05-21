@@ -207,6 +207,51 @@
       word-break: break-all; text-align: center; animation: toast-up 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
     @keyframes toast-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    /* --- 検索機能用の追加CSS --- */
+    .search-toggle-wrapper {
+      margin-top: 16px;
+      text-align: center;
+    }
+    
+    .search-panel {
+      display: none;
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px dashed var(--outline);
+      animation: app-fade 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    /* セレクトボックス（プルダウン）のモダン化 */
+    .field-wrapper select {
+      width: 100%; border: 1px solid var(--outline); border-radius: var(--radius-sm); padding: 16px 16px;
+      box-sizing: border-box; font-size: 15px; font-family: inherit; background: var(--bg); color: var(--text);
+      transition: var(--transition); appearance: none; -webkit-appearance: none; cursor: pointer;
+    }
+    .field-wrapper select:focus {
+      border-color: var(--outline-focus); outline: none; background: var(--surface);
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+    }
+    /* プルダウンの矢印アイコン */
+    .field-wrapper::after {
+      content: "▼"; font-size: 10px; color: var(--text-secondary); position: absolute; right: 16px; top: 22px; pointer-events: none;
+    }
+    /* テキスト入力欄のラッパーには矢印を出さないように制限 */
+    .field-wrapper:not(.select-wrapper)::after { content: none; }
+
+    /* 検索結果リストのスタイリング */
+    .results-list {
+      margin-top: 20px; max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
+    }
+    .result-item {
+      padding: 14px; background: var(--bg); border: 1px solid var(--outline); border-radius: var(--radius-sm);
+      cursor: pointer; transition: var(--transition); text-align: left;
+    }
+    .result-item:hover {
+      border-color: var(--outline-focus); background: var(--surface); transform: translateX(2px); box-shadow: var(--shadow-sm);
+    }
+    .result-item .item-name { font-weight: 600; font-size: 15px; color: var(--text); }
+    .result-item .item-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
   </style>
 </head>
 <body>
@@ -219,13 +264,36 @@
     <h1>名刺スキャナー</h1>
   </div>
 
-  <div class="card" id="uploadCard">
+<div class="card" id="uploadCard">
     <div class="action-grid">
       <div class="select-card-btn" id="camBtn" onclick="document.getElementById('cameraInput').click()"><span>📸</span>カメラで撮影</div>
       <div class="select-card-btn" id="fileBtn" onclick="document.getElementById('fileInput').click()"><span>📁</span>ファイル選択</div>
     </div>
     <div style="text-align:center; font-size:13px; color:var(--text-secondary); margin-top:16px; font-weight: 500;" id="statusLabel">
       名刺を選択すると、即座にAI解析を開始します
+    </div>
+
+    <div class="search-toggle-wrapper">
+      <button class="btn btn-tonal" id="openSearchBtn" style="height: 36px; width: auto; padding: 0 16px;" onclick="toggleSearchPanel()">🔍 登録済みの名刺を検索</button>
+    </div>
+
+    <div id="searchPanel" class="search-panel">
+      <div class="form-grid">
+        <div class="field-wrapper select-wrapper">
+          <select id="searchCompany">
+            <option value="">すべての会社</option>
+            </select>
+          <label>会社名</label>
+        </div>
+        <div class="field-wrapper">
+          <input id="searchKeyword" placeholder="氏名、メール、メモなど...">
+          <label>検索キーワード</label>
+        </div>
+      </div>
+      
+      <button class="btn btn-filled" id="executeSearchBtn" style="height: 40px; margin-top: 4px;" onclick="executeSearch()">検索する</button>
+      
+      <div id="searchResults" class="results-list"></div>
     </div>
 
     <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="processAndRun(this)">
@@ -277,6 +345,74 @@ let currentData = {};
 let finalBase64 = "";
 let selectedFileName = "";
 let isProcessing = false;
+
+// --- 検索機能用の追加JavaScript (第2弾) ---
+
+let isCompanyListLoaded = false; // 会社名リストを一度読み込んだかどうかのフラグ
+
+// 検索パネルの表示・非表示を切り替える
+async function toggleSearchPanel() {
+  const panel = document.getElementById("searchPanel");
+  const btn = document.getElementById("openSearchBtn");
+  
+  if (panel.style.display === "block") {
+    panel.style.display = "none";
+    btn.innerText = "🔍 登録済みの名刺を検索";
+  } else {
+    panel.style.display = "block";
+    btn.innerText = "🔼 検索パネルを閉じる";
+    
+    // まだ会社名リストを読み込んでいなければ、GASから取得する
+    if (!isCompanyListLoaded) {
+      await fetchCompanyList();
+    }
+  }
+}
+
+// GASから重複のない会社名一覧を取得してプルダウンにセットする
+async function fetchCompanyList() {
+  const selectEl = document.getElementById("searchCompany");
+  selectEl.disabled = true;
+  selectEl.options[0].text = "⏳ 会社名を取得中...";
+
+  try {
+    // VercelからGASへ会社名取得リクエスト (CORS回避のため text/plain で送信)
+    const response = await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ action: "getCompanies" })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success && Array.isArray(result.companies)) {
+      // 一旦「すべての会社」以外をクリア
+      selectEl.innerHTML = '<option value="">すべての会社</option>';
+      
+      // 取得した会社名をプルダウンに追加
+      result.companies.forEach(company => {
+        if (company) { // 空白行は除外
+          const opt = document.createElement("option");
+          opt.value = company;
+          opt.textContent = company;
+          selectEl.appendChild(opt);
+        }
+      });
+      
+      isCompanyListLoaded = true;
+    } else {
+      throw new Error(result.error || "会社名の取得に失敗しました");
+    }
+  } catch (err) {
+    showToast("会社名取得エラー: " + err.message);
+    selectEl.options[0].text = "⚠️ 取得失敗 (再開閉してください)";
+  } finally {
+    selectEl.disabled = false;
+    if (isCompanyListLoaded) {
+      selectEl.options[0].text = "すべての会社";
+    }
+  }
+}
 
 async function fileToBase64(file) {
   return new Promise((resolve, reject) => {
