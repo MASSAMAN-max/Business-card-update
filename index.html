@@ -745,34 +745,45 @@ async function executeSearch() {
 }
 
 // 検索結果をクリックした際、フォームにデータを流し込む
+// フロント修正：画像表示とフォーム展開を安全に行う関数
 function selectSearchResult(index) {
   const item = searchCache[index];
   if (!item) return;
   
-  // 画面切り替え
+  // 1. 画面を切り替える
   document.getElementById("uploadCard").style.display = "none";
   document.getElementById("resultCard").style.display = "block";
+  window.scrollTo({ top: 0, behavior: 'smooth' });
   
-  // 画像URLがあれば表示、なければ非表示
+  // 2. 【画像表示処理】エラーが起きないよう安全に要素を取得
   const previewContainer = document.querySelector(".result-preview-container");
-  const imgElement = document.getElementById("previewImage"); // 既存のプレビュー用imgタグ
+  const imgElement = previewContainer ? previewContainer.querySelector("img") : null;
 
-  if (item.imageUrl) {
+  if (item.imageUrl && previewContainer && imgElement) {
     previewContainer.style.display = "flex";
-    imgElement.src = item.imageUrl; // 画像URLをセット
+    
+    // GoogleドライブのURL（.../file/d/ID/view）を表示可能な直リンク形式（.../uc?id=ID）に自動変換
+    let srcUrl = item.imageUrl;
+    if (srcUrl.includes("drive.google.com")) {
+      const matches = srcUrl.match(/\/file\/d\/([^\/]+)/);
+      if (matches && matches[1]) {
+        srcUrl = "https://drive.google.com/uc?export=view&id=" + matches[1];
+      }
+    }
+    imgElement.src = srcUrl; // 画像をセット
   } else {
-    previewContainer.style.display = "none";
+    // URLがない、または要素がない場合は画像エリアを隠す
+    if (previewContainer) previewContainer.style.display = "none";
   }
   
+  // 3. 【フォームへのデータ流uし込み】（画像処理でエラーが出なくなったので、ここが確実に動きます）
   const header = item.header;
   const rowData = item.rowData;
   
-  // 基本3項目のマッピング
   setValue("company", item.company);
   setValue("name", item.name);
   setValue("email", item.email);
   
-  // その他の項目は、スプレッドシートのヘッダー名と一致する列から動的に取得
   const fields = {
     "部署": "department",
     "電話番号": "tel",
@@ -789,20 +800,17 @@ function selectSearchResult(index) {
     if (colIdx !== -1) {
       setValue(inputId, rowData[colIdx]);
     } else {
-      setValue(inputId, ""); // 列が存在しない場合は空に
+      setValue(inputId, "");
     }
   }
   
-  // currentData を上書き（将来的な更新機能の拡張用に、行番号などを保持）
   currentData = {
     rowNumber: item.rowNumber
   };
   
-  // 検索から開いた場合は「シートに新規保存」ではなく閲覧・修正状態になるため、保存ボタンを調整可能
-  // 今回はそのまま新規保存、あるいは上書き用として機能させられます
   showToast("名刺データを読み込みました");
 }
-
+  
 // セキュリティ用：HTMLエスケープ処理
 function escapeHtml(str) {
   if (!str) return "";
