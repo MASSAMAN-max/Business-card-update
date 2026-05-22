@@ -352,9 +352,11 @@ let currentData = {};
 let finalBase64 = "";
 let selectedFileName = "";
 let isProcessing = false;
-let isCompanyListLoaded = false; 
+let isCompanyListLoaded = false;
 
-await fetchCompanyList()
+window.addEventListener("DOMContentLoaded", async () => {
+  await fetchCompanyList();
+});
 // GASから重複のない会社名一覧を取得してプルダウンにセットする
 async function fetchCompanyList() {
   const selectEl = document.getElementById("searchCompany");
@@ -411,11 +413,6 @@ async function toggleSearchPanel() {
   } else {
     panel.style.display = "block";
     btn.innerText = "🔼 検索パネルを閉じる";
-    
-    // まだ会社名リストを読み込んでいなければ、GASから取得する
-    if (!isCompanyListLoaded) {
-      await fetchCompanyList();
-    }
   }
 }
 
