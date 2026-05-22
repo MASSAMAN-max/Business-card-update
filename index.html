@@ -417,12 +417,12 @@ async function fetchCompanyList() {
   }
 }
 
-async function fileToBase64(fileto64) {
+async function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result.split(",")[1]);
     reader.onerror = error => reject(error);
-    reader.readAsDataURL(fileto64);
+    reader.readAsDataURL(file);
   });
 }
 
