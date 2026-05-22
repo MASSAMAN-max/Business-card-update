@@ -342,9 +342,6 @@
 <div id="toast" class="toast"></div>
 
 <script>
-// =================================================================
-// 【重要】ここに新しいGASのウェブアプリURL（末尾が /exec のもの）を貼り付けてください
-// =================================================================
 const GAS_URL = "https://script.google.com/macros/s/AKfycbykD3pVpoEfNFYE5fY6l8yIYUeOTBzmlRigNYh10_Mnkn8QaiAH5zxk7umuCi7avJD8Iw/exec";
 
 let currentData = {};
@@ -460,11 +457,11 @@ function showToast(msg) {
 async function processAndRun(inputElement) {
   if (isProcessing) return;
 
-  const file = inputElement.files[0];
-  if (!file) return;
+  const selectedFile = inputElement.files[0];
+  if (!selectedFile) return;
 
   isProcessing = true;
-  selectedFileName = file.name;
+  selectedFileName = selectedFile.name;
   document.getElementById("statusLabel").innerText = "⏳ Geminiが解析中...";
   document.getElementById("progressIndicator").style.display = "block";
   
@@ -476,7 +473,7 @@ async function processAndRun(inputElement) {
   });
 
   try {
-    const rawBase64 = await fileToBase64(file);
+    const rawBase64 = await fileToBase64(selectedFile);
     const compressedRaw = await compressBase64(rawBase64, 1400, 0.85);
 
     // VercelからGASウェブアプリへPOST通信（Content-Typeを指定してCORSプリフライトエラーを完全回避）
@@ -681,9 +678,9 @@ function endLoading() {
   document.getElementById("statusLabel").innerText = "名刺を選択すると、即座にAI解析を開始します";
   
   const cam = document.getElementById("cameraInput");
-  const file = document.getElementById("fileInput");
+  const fileInputEl = document.getElementById("fileInput");
   if (cam) { cam.disabled = false; cam.value = ""; }
-  if (file) { file.disabled = false; file.value = ""; }
+  if (fileInputEl) { fileInputEl.disabled = false; fileInputEl.value = ""; }
 
   document.querySelectorAll(".select-card-btn").forEach(el => {
     el.style.pointerEvents = "auto";
