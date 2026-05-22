@@ -749,7 +749,7 @@ async function executeSearch() {
 }
 
 // 画像URLの変換方式変更 ＆ ヘッダー名マッピングの厳密化
-function selectSearchResult(index) {
+async function selectSearchResult(index) {
   const item = searchCache[index];
   if (!item) return;
   
@@ -758,30 +758,49 @@ function selectSearchResult(index) {
   document.getElementById("resultCard").style.display = "block";
   window.scrollTo({ top: 0, behavior: 'smooth' });
   
-  // 2. 【画像表示処理】「ファイルURL」列から確実に取得して変換
+  // 2. 【画像表示処理】💡ここを丸ごと書き換え。GASからオンデマンドでBase64を通信取得
   const previewContainer = document.querySelector(".result-preview-container");
   const imgElement = previewContainer ? previewContainer.querySelector("img") : null;
-  
-  // 💡修正：「ファイルURL」の列位置を動的に検索してURLを取得する
-  const fileUrlIdx = item.header ? item.header.indexOf("ファイルURL") : -1;
-  const targetUrl = fileUrlIdx !== -1 ? item.rowData[fileUrlIdx] : item.imageUrl;
-  
-  if (targetUrl && previewContainer && imgElement) {
-    previewContainer.style.display = "flex";
-    
-  let srcUrl = targetUrl;
-    if (srcUrl.includes("drive.google.com")) {
-      const matches = srcUrl.match(/\/file\/d\/([^\/]+)/);
-      if (matches && matches[1]) {
-        // 💡 従来のthumbnail形式を廃止し、Google公式の画像配信用URLに変換
-        srcUrl = "https://lh3.googleusercontent.com/d/" + matches[1];
+
+  if (previewContainer && imgElement) {
+    // 安全に「ファイルURL」列の値を取得
+    const fileUrlIdx = item.header ? item.header.indexOf("ファイルURL") : -1;
+    const targetUrl = fileUrlIdx !== -1 ? item.rowData[fileUrlIdx] : (item.fileUrl || item.imageUrl);
+
+    if (targetUrl) {
+      previewContainer.style.display = "flex";
+      imgElement.src = ""; // 前の画像をクリア
+      imgElement.alt = "⌛ 画像を読み込み中...";
+
+      try {
+        // GASに対して、このURLの画像バイナリを要求する
+        const response = await fetch(GAS_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({
+            action: "getCardImage",
+            fileUrl: targetUrl
+          })
+        });
+        
+        const res = await response.json();
+        
+        if (res.success && res.base64) {
+          // 💡URLではなく「Base64生データ」をダイレクトにimgタグにブチ込む
+          imgElement.src = "data:image/jpeg;base64," + res.base64;
+          imgElement.alt = "名刺画像";
+        } else {
+          imgElement.alt = "❌ 画像の取得に失敗しました";
+          console.error("GAS側エラー:", res.error);
+        }
+      } catch (err) {
+        imgElement.alt = "❌ 通信エラーが発生しました";
+        console.error("通信エラー:", err);
       }
+    } else {
+      previewContainer.style.display = "none";
     }
-    imgElement.src = srcUrl;
-  } else {
-    if (previewContainer) previewContainer.style.display = "none";
-  }
-  
+  }  
   // 3. 【フォームへのデータ流し込み】
   const header = item.header;
   const rowData = item.rowData;
