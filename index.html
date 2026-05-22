@@ -354,6 +354,7 @@ let selectedFileName = "";
 let isProcessing = false;
 let isCompanyListLoaded = false; 
 
+await fetchCompanyList()
 // GASから重複のない会社名一覧を取得してプルダウンにセットする
 async function fetchCompanyList() {
   const selectEl = document.getElementById("searchCompany");
