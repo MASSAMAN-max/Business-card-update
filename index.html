@@ -769,7 +769,7 @@ function selectSearchResult(index) {
   if (targetUrl && previewContainer && imgElement) {
     previewContainer.style.display = "flex";
     
-let srcUrl = targetUrl;
+  let srcUrl = targetUrl;
     if (srcUrl.includes("drive.google.com")) {
       const matches = srcUrl.match(/\/file\/d\/([^\/]+)/);
       if (matches && matches[1]) {
@@ -778,6 +778,9 @@ let srcUrl = targetUrl;
       }
     }
     imgElement.src = srcUrl;
+  } else {
+    if (previewContainer) previewContainer.style.display = "none";
+  }
   
   // 3. 【フォームへのデータ流し込み】
   const header = item.header;
