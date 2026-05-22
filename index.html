@@ -258,6 +258,10 @@
     }
     .result-item .item-name { font-weight: 600; font-size: 15px; color: var(--text); }
     .result-item .item-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+    .item-name-row { display: flex; align-items: center; }
+    .item-mobile { margin-left: auto; font-size: 14px; color: #64748b; }
+    
   </style>
 </head>
 <body>
@@ -267,7 +271,7 @@
     <div class="logo-container">
       <div class="logo-dot"></div>
     </div>
-    <h1>名刺スキャナー</h1>
+    <h1>名刺管理アプリ</h1>
   </div>
 
 <div class="card" id="uploadCard">
@@ -333,7 +337,7 @@
       <div class="field-wrapper full-width"><textarea id="memo"></textarea><label>メモ</label></div>
     </div>
       
-    <button class="btn btn-filled" id="saveBtn" onclick="save()">シートとドライブに保存</button>
+    <button class="btn btn-filled" id="saveBtn" onclick="save()">名刺情報を保存</button>
     <button class="btn btn-tonal" id="resetBtn" onclick="resetUI()">別の名刺をスキャン</button>
   </div>
   <canvas id="hiddenCanvas" style="display:none;"></canvas>
@@ -348,29 +352,7 @@ let currentData = {};
 let finalBase64 = "";
 let selectedFileName = "";
 let isProcessing = false;
-
-// --- 検索機能用の追加JavaScript (第2弾) ---
-
-let isCompanyListLoaded = false; // 会社名リストを一度読み込んだかどうかのフラグ
-
-// 検索パネルの表示・非表示を切り替える
-async function toggleSearchPanel() {
-  const panel = document.getElementById("searchPanel");
-  const btn = document.getElementById("openSearchBtn");
-  
-  if (panel.style.display === "block") {
-    panel.style.display = "none";
-    btn.innerText = "🔍 登録済みの名刺を検索";
-  } else {
-    panel.style.display = "block";
-    btn.innerText = "🔼 検索パネルを閉じる";
-    
-    // まだ会社名リストを読み込んでいなければ、GASから取得する
-    if (!isCompanyListLoaded) {
-      await fetchCompanyList();
-    }
-  }
-}
+let isCompanyListLoaded = false; 
 
 // GASから重複のない会社名一覧を取得してプルダウンにセットする
 async function fetchCompanyList() {
@@ -408,11 +390,30 @@ async function fetchCompanyList() {
     }
   } catch (err) {
     showToast("会社名取得エラー: " + err.message);
-    selectEl.options[0].text = "⚠️ 取得失敗 (再開閉してください)";
+    selectEl.options[0].text = "⚠️ 取得失敗 (再起動してください)";
   } finally {
     selectEl.disabled = false;
     if (isCompanyListLoaded) {
       selectEl.options[0].text = "すべての会社";
+    }
+  }
+}
+
+// 検索パネルの表示・非表示を切り替える
+async function toggleSearchPanel() {
+  const panel = document.getElementById("searchPanel");
+  const btn = document.getElementById("openSearchBtn");
+  
+  if (panel.style.display === "block") {
+    panel.style.display = "none";
+    btn.innerText = "🔍 登録済みの名刺を検索";
+  } else {
+    panel.style.display = "block";
+    btn.innerText = "🔼 検索パネルを閉じる";
+    
+    // まだ会社名リストを読み込んでいなければ、GASから取得する
+    if (!isCompanyListLoaded) {
+      await fetchCompanyList();
     }
   }
 }
@@ -741,8 +742,16 @@ async function executeSearch() {
         itemEl.onclick = () => selectSearchResult(index); // クリックでフォームに展開
         
         itemEl.innerHTML = `
-          <div class="item-name">${escapeHtml(item.name || "氏名なし")}</div>
-          <div class="item-sub">${escapeHtml(item.company || "会社名なし")}${item.email ? ' ｜ ' + escapeHtml(item.email) : ''}</div>
+          <div class="item-name-row">
+            <div class="item-name">${escapeHtml(item.name || "氏名なし")}</div>
+            ${item.mobile
+              ? `<div class="item-mobile">${escapeHtml(item.mobile)}</div>`
+              : ''}
+          </div>
+          <div class="item-sub">
+            ${escapeHtml(item.company || "会社名なし")}
+            ${item.email ? ' ｜ ' + escapeHtml(item.email) : ''}
+          </div>
         `;
         resultsDiv.appendChild(itemEl);
       });
