@@ -757,18 +757,22 @@ function selectSearchResult(index) {
   document.getElementById("resultCard").style.display = "block";
   window.scrollTo({ top: 0, behavior: 'smooth' });
   
-  // 2. 【画像表示処理】ブロックされにくい thumbnail 形式に変換
+  // 2. 【画像表示処理】「ファイルURL」列から確実に取得して変換
   const previewContainer = document.querySelector(".result-preview-container");
   const imgElement = previewContainer ? previewContainer.querySelector("img") : null;
-
-  if (item.imageUrl && previewContainer && imgElement) {
+  
+  // 💡修正：「ファイルURL」の列位置を動的に検索してURLを取得する
+  const fileUrlIdx = item.header ? item.header.indexOf("ファイルURL") : -1;
+  const targetUrl = fileUrlIdx !== -1 ? item.rowData[fileUrlIdx] : item.imageUrl;
+  
+  if (targetUrl && previewContainer && imgElement) {
     previewContainer.style.display = "flex";
     
-    let srcUrl = item.imageUrl;
+    let srcUrl = targetUrl;
     if (srcUrl.includes("drive.google.com")) {
       const matches = srcUrl.match(/\/file\/d\/([^\/]+)/);
       if (matches && matches[1]) {
-        // 💡ここを修正：外部サイトでも高確率で表示できるサムネイルURL形式に変換
+        // 外部サイトでも高確率で表示できるサムネイルURL形式に変換
         srcUrl = "https://drive.google.com/thumbnail?sz=w1000&id=" + matches[1];
       }
     }
