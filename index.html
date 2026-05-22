@@ -728,6 +728,7 @@ async function executeSearch() {
       searchCache.forEach((item, index) => {
         const itemEl = document.createElement("div");
         itemEl.className = "result-item";
+        console.log("【デバッグ】GASから届いたデータ:", item); // 💡ココを追加！
         itemEl.onclick = () => selectSearchResult(index); // クリックでフォームに展開
         
         itemEl.innerHTML = `
