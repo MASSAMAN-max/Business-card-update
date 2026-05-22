@@ -637,22 +637,10 @@ async function save() {
   currentData.タグ = getValue("tag");
   currentData.メモ = getValue("memo");
 
-  // 既存データの更新で、画像データがまだセットされていない場合の処理
-  if (currentData.rowNumber && !currentData.base64) {
-    const previewImg = document.querySelector(".result-preview-container img");
-    if (previewImg && previewImg.src.startsWith("data:image")) {
-      // 表示されている "data:image/jpeg;base64,XXXX..." の「XXXX...」の純粋なデータ部分だけを抽出
-      currentData.base64 = previewImg.src.split(",")[1];
-    }
-  }
-
   try {
-    // スプレッドシート保存リクエスト（Content-Typeを指定してCORSプリフライトエラーを完全回避）
     const response = await fetch(GAS_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "text/plain"
-      },
+      headers: { "Content-Type": "text/plain" },
       body: JSON.stringify({ action: "save", currentData: currentData })
     });
     
