@@ -648,7 +648,7 @@ async function save() {
 
     if (result.success) {
       saveBtn.disabled = false;
-      showToast("スプレッドシートとドライブに保存しました");
+      showToast("名刺情報を保存しました");
       setTimeout(() => resetUI(), 1200); 
     } else {
       throw new Error(result.error || "保存に失敗しました");
@@ -724,7 +724,7 @@ async function executeSearch() {
       searchCache.forEach((item, index) => {
         const itemEl = document.createElement("div");
         itemEl.className = "result-item";
-        console.log("【デバッグ】GASから届いたデータ:", item); // 💡ココを追加！
+        console.log("【デバッグ】GASから届いたデータ:", item); 
         itemEl.onclick = () => selectSearchResult(index); // クリックでフォームに展開
         
         itemEl.innerHTML = `
@@ -762,7 +762,7 @@ async function selectSearchResult(index) {
   document.getElementById("resultCard").style.display = "block";
   window.scrollTo({ top: 0, behavior: 'smooth' });
   
-  // 2. 【画像表示処理】💡ここを丸ごと書き換え。GASからオンデマンドでBase64を通信取得
+  // 2. 【画像表示処理】GASからオンデマンドでBase64を通信取得
   const previewContainer = document.querySelector(".result-preview-container");
   const imgElement = previewContainer ? previewContainer.querySelector("img") : null;
 
@@ -813,7 +813,6 @@ async function selectSearchResult(index) {
   setValue("name", item.name);
   setValue("email", item.email);
   
-  // 💡ここを修正：スプレッドシートの「1行目の項目名」と完全に一致させてください
   const fields = {
     "会社名": "company",
     "部署": "department",
