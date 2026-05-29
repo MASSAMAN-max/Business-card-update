@@ -258,9 +258,31 @@
     }
     .result-item .item-name { font-weight: 600; font-size: 15px; color: var(--text); }
     .result-item .item-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+    .item-name-row { 
+      display: flex; 
+      align-items: center; 
+      justify-content: space-between; /* 💡 左右両端に分散配置 */
+      gap: 12px;
+    }
+    /* 左側（氏名と携帯番号）をまとめるコンテナ */
+    .item-name-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    /* margin-left: auto を削除して左詰めに変更 */
+    .item-mobile { 
+      font-size: 13px; 
+      color: #64748b; 
+    }
+    /*右端の日付の見た目 */
+    .item-date {
+      font-size: 11px;
+      color: var(--text-secondary, #888);
+      white-space: nowrap; /* 縦潰れ・改行を防止 */
+    }
 
-    .item-name-row { display: flex; align-items: center; }
-    .item-mobile { margin-left: auto; font-size: 14px; color: #64748b; }
+    
     
   </style>
 </head>
@@ -724,29 +746,30 @@ async function executeSearch() {
         return;
       }
       
-      // 検索結果を1件ずつリストアイテムとして生成
+// 検索結果を1件ずつリストアイテムとして生成
       searchCache.forEach((item, index) => {
         const itemEl = document.createElement("div");
         itemEl.className = "result-item";
         console.log("【デバッグ】GASから届いたデータ:", item); 
         itemEl.onclick = () => selectSearchResult(index); // クリックでフォームに展開
 
+        // 💡 氏名の右端（同一行の右側）に日付がくるように構造を修正
         itemEl.innerHTML = `
           <div class="item-name-row">
-            <div class="item-name">${escapeHtml(item.name || "氏名なし")}</div>
-            ${item.mobile
-              ? `<div class="item-mobile">${escapeHtml(item.mobile)}</div>`
+            <div class="item-name-left">
+              <div class="item-name">${escapeHtml(item.name || "氏名なし")}</div>
+              ${item.mobile
+                ? `<div class="item-mobile">${escapeHtml(item.mobile)}</div>`
+                : ''}
+            </div>
+            ${item.date 
+              ? `<div class="item-date">📅 ${escapeHtml(item.date)}</div>` 
               : ''}
           </div>
           <div class="item-sub">
             <span class="item-company">${escapeHtml(item.company || "会社名なし")}</span>
             ${item.email ? ' ｜ ' + escapeHtml(item.email) : ''}
           </div>
-          ${item.date 
-            ? `<div class="item-date" style="font-size: 11px; color: var(--text-secondary, #888); margin-top: 4px; text-align: right;">
-                 📅 登録: ${escapeHtml(item.date)}
-               </div>` 
-            : ''}
         `;
         resultsDiv.appendChild(itemEl);
       });
@@ -776,17 +799,15 @@ async function selectSearchResult(index) {
   const imgElement = previewContainer ? previewContainer.querySelector("img") : null;
 
   if (previewContainer && imgElement) {
-    // 安全に「ファイルURL」列の値を取得
     const fileUrlIdx = item.header ? item.header.indexOf("ファイルURL") : -1;
     const targetUrl = fileUrlIdx !== -1 ? item.rowData[fileUrlIdx] : (item.fileUrl || item.imageUrl);
 
     if (targetUrl) {
       previewContainer.style.display = "flex";
-      imgElement.src = ""; // 前の画像をクリア
+      imgElement.src = ""; 
       imgElement.alt = "⌛ 画像を読み込み中...";
 
       try {
-        // GASに対して、このURLの画像バイナリを要求する
         const response = await fetch(GAS_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain" },
@@ -799,7 +820,6 @@ async function selectSearchResult(index) {
         const res = await response.json();
         
         if (res.success && res.base64) {
-          // 💡URLではなく「Base64生データ」をダイレクトにimgタグにブチ込む
           imgElement.src = "data:image/jpeg;base64," + res.base64;
           imgElement.alt = "名刺画像";
         } else {
@@ -814,15 +834,19 @@ async function selectSearchResult(index) {
       previewContainer.style.display = "none";
     }
   }  
+  
   // 3. 【フォームへのデータ流し込み】
   const header = item.header;
   const rowData = item.rowData;
-  setValue("company", item.company);
-  setValue("name", item.name);
-  setValue("email", item.email);
-  const dateEl = document.getElementById("date");
-  setValue("date", item.date);
   
+  // 💡 fieldsより「上」で、フォームの入力枠ではなくただのテキスト（innerText）として流し込む
+  const dateEl = document.getElementById("date");
+  if (dateEl) {
+    dateEl.innerText = item.date || "未登録";
+  }
+  
+  // ※重複していた個別 setValue("company"等) は、下のループで一括処理されるため安全に削除しました。
+
   const fields = {
     "会社名": "company",
     "部署": "department",
@@ -845,11 +869,9 @@ async function selectSearchResult(index) {
       setValue(inputId, "");
     }
   }
-  
   currentData = {
     rowNumber: item.rowNumber
   };
-  
   showToast("名刺データを読み込みました");
 }
   
