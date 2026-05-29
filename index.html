@@ -808,13 +808,13 @@ async function selectSearchResult(index) {
   // 3. 【フォームへのデータ流し込み】
   const header = item.header;
   const rowData = item.rowData;
-  
   setValue("company", item.company);
   setValue("name", item.name);
   setValue("email", item.email);
+  setValue("date", item.date);
   
   const fields = {
-    "会社名": "company",
+    "会社名": "",
     "部署": "department",
     "氏名": "name",
     "メールアドレス": "email",
